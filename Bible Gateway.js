@@ -103,6 +103,7 @@ function scrape(doc, url) {
     //    // Handle the response text here
     //}
 	//});
+	item.complete();
 }
 
 /** BEGIN TEST CASES **/
