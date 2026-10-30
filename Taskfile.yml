@@ -1,6 +1,6 @@
 version: "3"
 vars:
-  SOURCE: '{{ .SOURCE | default "Bible Gateway.js" }}'
+  SOURCE: '{{ .SOURCE | default "BibleGateway.js" }}'
   SOURCE_FILE: '{{ base .SOURCE }}'
   UPSTREAM_REPO: '{{ .UPSTREAM_REPO | default .CLI_ARGS | default "../translators" }}'
   REMOTE: '{{ .UPSTREAM_REMOTE | default "origin" }}'

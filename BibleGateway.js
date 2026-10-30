@@ -9,9 +9,8 @@
 	"inRepository": true,
 	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2026-10-22 20:08:33"
+	"lastUpdated": "2026-10-29 22:25:15"
 }
-
 
 /*
 	***** BEGIN LICENSE BLOCK *****
@@ -53,16 +52,9 @@ function getSearchResults(doc, checkOnly) {
 	return found ? items: false;
 }
 
-async function scrape(doc, url=doc.location.href) {
-	let item =  new Zotero.Item("bookSection");
-	item.url = url;
-	item.language = attr(doc, "html", "lang");
-
-	item.complete();
-}
-
 
 function detectWeb(doc, url) {
+	Zotero.debug(`in BibleGateway detectWeb for ${url}`);
 	if (isPassageUrl(url)) {
 		return "bookSection";
 	}
@@ -71,42 +63,76 @@ function detectWeb(doc, url) {
 
 async function doWeb(doc, url) {
 	let detected = detectWeb(doc, url)
+	Zotero.debug(`in doWeb for ${url}, detected ${detected}`);
 	if (detected == 'multiple') {
 		// ToDo
 		Zotero.debug("found multiple, not yet supported!")
 	} else {
-		scrape(doc, url)
+		await scrape(doc, url);
 	}
 }
 
-function scrape(doc, url) {
+async function scrape(doc, url) {
+	Zotero.debug(`scraping ${url}`)
 	let item = new Zotero.Item('bookSection');
 	item.language = attr(doc, "html", "lang");
 
 	let itemType = attr(doc, '[property~="og:type"]', 'content');
 	let tagNodeList = doc.querySelectorAll(`[property~="og:${itemType}:tag"]`);
 	let description = attr(doc, '[property~="og:description"]', 'content');
-	const titleTag = document.querySelector('meta[property="og:title"]');
-	let title = document.title
+	const titleTag = doc.querySelector('meta[property="og:title"]');
+	let title = doc.title
 	if (titleTag) {
+		Zotero.debug(`found TitleTag: ${titleTag}`);
 		titleText = titleTag.getAttribute('content').split('passage:')[1]?.trim();
 		if (titleText) {
 			title=titleText
 		}
 	}
-	item.title = title
-	//Zotero.HTTP.request({
-    //method: 'GET',
-    //url: url,
-    //success: function(transport) {
-    //    let text = transport.responseText;
-    //    // Handle the response text here
-    //}
-	//});
+	item.title = title;
+	item.abstractNote = description;
+	Zotero.debug("node list", tagNodeList);
+
+	printLink = attr(doc, "a.print", "href");
+	Zotero.debug(`found printlink: ${printLink}`);
+	let attURL = new URL(printLink, url).href;
+	let attachedDoc = await requestDocument(attURL);
+	Zotero.debug(`got snapshot: ${attachedDoc}`)
+	let attachment = {
+		title: "Snapshot",
+		url: attURL,
+		mimeType: "text/html",
+		document: attachedDoc
+	};
+	Zotero.debug(`created attachment: ${attachment}`)
+	item.attachments.push(attachment);
 	item.complete();
 }
 
 /** BEGIN TEST CASES **/
 var testCases = [
+	{
+		"type": "web",
+		"url": "https://www.biblegateway.com/passage/?search=Joshua%203&version=NRSVUE",
+		"items": [
+			{
+				"itemType": "bookSection",
+				"title": "Joshua 3 - New Revised Standard Version Updated Edition",
+				"creators": [],
+				"abstractNote": "Israel Crosses the Jordan - Early in the morning Joshua rose and set out from Shittim with all the Israelites, and they came to the Jordan. They camped there before crossing over. At the end of three days, the officers went through the camp and commanded the people, “When you see the ark of the covenant of the LORD your God being carried by the Levitical priests, then you shall set out from your place. Follow it, so that you may know the way you should go, for you have not passed this way before. Yet there shall be a space between you and it, a distance of about two thousand cubits; do not come any nearer to it.” Then Joshua said to the people, “Sanctify yourselves, for tomorrow the LORD will do wonders among you.”",
+				"language": "en",
+				"libraryCatalog": "Bible Gateway",
+				"attachments": [
+					{
+						"title": "Snapshot",
+						"mimeType": "text/html"
+					}
+				],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
+			}
+		]
+	}
 ]
 /** END TEST CASES **/
