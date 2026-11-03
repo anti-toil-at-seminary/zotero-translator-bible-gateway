@@ -20,11 +20,11 @@ vars:
       && echo -n '{{ .TARGET_BRANCH_FROM_FILE }}'
       || echo -n '{{ .THIS_BRANCH }}'
   TARGET_BRANCH: '{{ .TARGET_BRANCH | default .DEFAULT_TARGET_BRANCH }}'
-  GHA_DOCKERFILE_DEV: "https://raw.githubusercontent.com/pretty-weed/toolbelt/image_dev/docker/ci_tools/Dockerfile"
+  GHA_DOCKERFILE_DEV: "https://raw.githubusercontent.com/pretty-weed/toolbelt/main/docker/ci_tools/Dockerfile"
   BASE_DOCKERFILE: ".task/Dockerfile.base"
 includes:
   ciContainers: https://raw.githubusercontent.com/pretty-weed/toolbelt/main/task/container/Taskfile-ci-containers.yml
-  containerLib: https://raw.githubusercontent.com/pretty-weed/toolbelt/image_dev/task/container/Taskfile.yml
+  containerLib: https://raw.githubusercontent.com/pretty-weed/toolbelt/main/task/container/Taskfile.yml
 
 
 tasks:
