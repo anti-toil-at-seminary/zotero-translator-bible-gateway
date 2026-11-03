@@ -117,6 +117,11 @@ try {
 	options.addArguments('--remote-debugging-pipe')
 	if (CI) {
 		options.addArguments('headless=new');
+		options.addArguments('--disable-gpu');
+		options.addArguments('--enable-logging');
+		options.addArguments('--v=1');
+		options.addArguments('--no-sandbox')
+		options.addArguments('--disable-gpu')
 	}
 	if ('BROWSER_EXECUTABLE' in process.env) {
 		console.log(`Using BROWSER_EXECUTABLE=${process.env['BROWSER_EXECUTABLE']}`);
@@ -148,7 +153,7 @@ catch (e) {
 	console.error(e);
 }
 finally {
-	if (!KEEP_BROWSER_OPEN) {
+	if (!KEEP_BROWSER_OPEN && driver) {
 		await driver.quit();
 	}
 	translatorServer.stopServing();
