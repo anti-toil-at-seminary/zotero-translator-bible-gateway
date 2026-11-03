@@ -20,6 +20,13 @@ vars:
       && echo -n '{{ .TARGET_BRANCH_FROM_FILE }}'
       || echo -n '{{ .THIS_BRANCH }}'
   TARGET_BRANCH: '{{ .TARGET_BRANCH | default .DEFAULT_TARGET_BRANCH }}'
+  GHA_DOCKERFILE_DEV: "https://raw.githubusercontent.com/pretty-weed/toolbelt/image_dev/docker/ci_tools/Dockerfile"
+  BASE_DOCKERFILE: ".task/Dockerfile.base"
+includes:
+  ciContainers: https://raw.githubusercontent.com/pretty-weed/toolbelt/main/task/container/Taskfile-ci-containers.yml
+  containerLib: https://raw.githubusercontent.com/pretty-weed/toolbelt/image_dev/task/container/Taskfile.yml
+
+
 tasks:
   clean:
     cmd: rm -rf .ci/pull-request-check/connectors
@@ -68,7 +75,105 @@ tasks:
     dir: .ci
     cmds:
       - ./lint.sh -- --fix
-  ci-check:
+      
+  update-connectors:
+    run: when_changed
     dir: ".ci/pull-request-check"
+    internal: true
+    status: 
+      - test ! -d connectors/.git
     cmds:
-      - ./check-pull-request.sh
+      - cd connectors && git pull
+  clone-connectors:
+    run: when_changed
+    dir: ".ci/pull-request-check"
+    internal: true
+    status: 
+      - test -d connectors/.git
+    cmds:
+      - git clone https://github.com/zotero/zotero-connectors.git connectors
+  fetch-connectors:
+    run: when_changed
+    cmds:
+      - task: update-connectors
+      - task: clone-connectors
+  ci-img:
+    run: when_changed
+    vars:
+      UID:
+        sh: id -u
+      GID:
+        sh: id -g
+    env:
+      BASEFILE: '{{ .BASE_DOCKERFILE }}'
+      HOST_UID: '{{ .UID }}'
+      HOST_GID: '{{ .GID }}'
+
+    deps:
+      - fetch-connectors
+      - task: containerLib:get-dockerfile
+        vars:
+          GET_SOURCE: '{{ .GHA_DOCKERFILE_DEV }}'
+          DEST: '{{ .BASE_DOCKERFILE }}'
+    cmds:
+      - pwd
+      - > 
+        docker buildx bake -f tooling/docker-bake.hcl 
+        --allow=fs.read='{{ .BASE_DOCKERFILE }}'
+        --allow=fs.read="$(pwd)"
+        "default"
+
+  ci-run:
+    deps:
+      - ci-img
+    requires:
+      vars: ["SH"]
+    cmds:
+      - task: containerLib:in-container
+        vars:
+          IMAGE: "zotero-translator-bible-gateway-testing:latest"
+          SH: '{{ .SH }}'
+
+  ci-check:
+    vars:
+      POST_RUN_CMD: '{{ if .POST_RUN }}{{ if not (.POST_RUN | hasPrefix "&&") }}&& {{end}}{{ end }}'
+    cmds:
+      - task: ci-run
+        vars: 
+          SH: |
+            npx puppeteer browsers install chrome
+            export BROWSER_EXECUTABLE='/home/ubuntu/.cache/puppeteer/chrome/linux-156.0.8078.47/chrome-linux64/chrome'
+            export CHROMEDRIVER_ARGUMENTS='--no-sandbox --disable-dev-shm-usage --headless'
+            cd /workdir/.ci/pull-request-check
+            git config --global --add safe.directory /workdir
+            ./check-pull-request.sh{{- if .POST_RUN_CMD }} {{ .POST_RUN_CMD }}{{- end -}}
+  ci-smoke:
+    desc: Run container smoke tests to verify Chrome and ChromeDriver dependencies
+    cmds:
+      - task: ci-run
+        vars:
+          SH: |
+            echo '=== Checking Playwright Installation ==='
+            npx playwright --version
+            echo '=== Testing Headless Chromium Execution via Playwright ==='
+            node -e \"
+              const { chromium } = require('playwright');
+              (async () => {
+                const browser = await chromium.launch({ headless: true });
+                const page = await browser.newPage();
+                await page.goto('https://example.com');
+                console.log('Page Title:', await page.title());
+                await browser.close();
+                console.log('Success! Playwright browser executed headless perfectly.');
+              })().catch(err => {
+                console.error('Browser Execution Failed:', err);
+                process.exit(1);
+              });
+            \"
+  ci-check-cmd:
+    deps:
+      - ci-img
+    cmds:
+      - task: ci-run
+        vars: 
+          SH: "/bin/bash"
