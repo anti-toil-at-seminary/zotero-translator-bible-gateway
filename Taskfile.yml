@@ -33,20 +33,45 @@ tasks:
   install:
     cmd: install -m 0644 '{{ .SOURCE }}' "{{ .UPSTREAM_REPO }}/{{ .SOURCE_FILE}}"
   fetch:
-    cmd: cp "{{ .UPSTREAM_REPO }}/{{.SOURCE_FILE}}" "{{ .SOURCE }}"
+    cmd: "sed 's/\"inRepository\": true,/\"inRepository\": false,/' {{ .TARGET_FILE }} > {{ .SOURCE_FILE }}"
+
   compare-upstream:
+    aliases: ["cmp", "diff", "compare"]
     cmds:
       - diff '{{ .TARGET_FILE }}' '{{ .SOURCE_FILE }}'
   install-upstream:
     cmds:
       - install -m 0644 '{{ .SOURCE }}' '{{ .TARGET_FILE }}'
-
+    sources:
+      - '{{ .SOURCE }}'
+    generates:
+      - '{{ .TARGET_FILE }}'
+  update-upstream:
+    desc: set inRepository to true
+    deps:
+      - install-upstream
+    cmds:
+      - |
+        sed -i "s/\"lastUpdated\": \"[0-9- :]\"/\"lastUpdated\": \"$(date '+%Y-%m-%d %H:%M:%S')\"" {{ .TARGET_FILE }}
+        sed -i 's/\"inRepository\": \(true|false\),/\"inRepository\": true,' {{ .TARGET_FILE }}
+      - |
+        node -e '
+          const fs = require("fs");
+          const file = process.argv[1];
+          let content = fs.readFileSync(file, "utf8");
+          const now = new Date().toISOString().replace("T", " ").slice(0, 19);
+          content = content
+            .replace(/"inRepository":\s*false/, "\"inRepository\": true")
+            .replace(/"lastUpdated":\s*"[^"]*"/, `"lastUpdated": "${now}"`);
+          fs.writeFileSync(file, content, "utf8");
+        ' "{{.UPSTREAM_DIR}}/{{.TRANSLATOR_FILE}}"
   push-upstream:
     preconditions:
       - sh: git diff --quiet -- ":(exclude)Taskfile.yml"
         msg: No local changes before pushing!
     deps:
       - install-upstream
+      - update-upstream
     vars:
       SOURCE_COMMIT:
         sh: git rev-parse --short HEAD
@@ -75,12 +100,12 @@ tasks:
     dir: .ci
     cmds:
       - ./lint.sh -- --fix
-      
+
   update-connectors:
     run: when_changed
     dir: ".ci/pull-request-check"
     internal: true
-    status: 
+    status:
       - test ! -d connectors/.git
     cmds:
       - cd connectors && git pull
@@ -88,7 +113,7 @@ tasks:
     run: when_changed
     dir: ".ci/pull-request-check"
     internal: true
-    status: 
+    status:
       - test -d connectors/.git
     cmds:
       - git clone https://github.com/zotero/zotero-connectors.git connectors
@@ -117,8 +142,8 @@ tasks:
           DEST: '{{ .BASE_DOCKERFILE }}'
     cmds:
       - pwd
-      - > 
-        docker buildx bake -f tooling/docker-bake.hcl 
+      - >
+        docker buildx bake -f tooling/docker-bake.hcl
         --allow=fs.read='{{ .BASE_DOCKERFILE }}'
         --allow=fs.read="$(pwd)"
         "default"
@@ -139,7 +164,7 @@ tasks:
       POST_RUN_CMD: '{{ if .POST_RUN }}{{ if not (.POST_RUN | hasPrefix "&&") }}&& {{end}}{{ end }}'
     cmds:
       - task: ci-run
-        vars: 
+        vars:
           SH: |
             npx puppeteer browsers install chrome
             export BROWSER_EXECUTABLE='/home/ubuntu/.cache/puppeteer/chrome/linux-156.0.8078.47/chrome-linux64/chrome'
@@ -175,5 +200,5 @@ tasks:
       - ci-img
     cmds:
       - task: ci-run
-        vars: 
+        vars:
           SH: "/bin/bash"

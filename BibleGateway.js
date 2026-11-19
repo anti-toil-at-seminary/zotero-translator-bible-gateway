@@ -3,10 +3,10 @@
 	"label": "BibleGateway",
 	"creator": "",
 	"target": "^https?://www\\.biblegateway\\.com/",
-	"minVersion": "5.0",
+	"minVersion": "7.0",
 	"maxVersion": "",
 	"priority": 200,
-	"inRepository": true,
+	"inRepository": false,
 	"translatorType": 4,
 	"browserSupport": "gcsibv",
 	"lastUpdated": "2026-11-19 18:35:03"
