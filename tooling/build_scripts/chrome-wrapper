@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+exec /usr/bin/chromium-browser --no-sandbox --disable-dev-shm-usage --headless=new "$@"

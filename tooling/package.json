@@ -1,0 +1,24 @@
+{
+  "name": "tooling",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "puppeteer": "^25.3.0",
+    "selenium-webdriver": "^4.x"
+  },
+  "dependencies": {
+    "chalk": "^6.0.1"
+  },
+  "allowScripts": {
+    "puppeteer": true,
+    "es5-ext@0.10.64": true
+  }
+}
