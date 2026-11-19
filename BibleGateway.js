@@ -9,7 +9,7 @@
 	"inRepository": true,
 	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2026-11-13 21:47:17"
+	"lastUpdated": "2026-11-19 18:35:03"
 }
 
 /*
@@ -43,18 +43,15 @@ function isPassageUrl(url) {
 
 
 function detectWeb(doc, url) {
-	Zotero.debug("!!! DETECTWEB TRACE TRIGGERED FOR: " + url);
-
 	if (!url.includes('biblegateway.com')) {
-		Zotero.debug(`BibleGateway detectWeb quick return ${url}`);
 		return false;
 	}
-	Zotero.debug(`in BibleGateway detectWeb for ${url}`);
 	if (isPassageUrl(url) && doc.querySelector('.passage-text')) {
 		return "bookSection";
 	}
 	return false;
 }
+
 
 function getSearchResults(doc, checkOnly) {
 	var items = {};
@@ -94,7 +91,6 @@ const docStyle = `
 		`;
 
 async function getChapterOverview(translation, chapterOsis) {
-	Zotero.debug(`in getChapterOverview ${translation} ${chapterOsis.book}.${chapterOsis.chapter}`);
 	const graphqlUrl = "https://www.biblegateway.com/graphql/";
 
 	const payload = {
@@ -122,7 +118,6 @@ async function getChapterOverview(translation, chapterOsis) {
 	});
 	if (response.status > 299) {
 		for (let error of response.body.errors) {
-			Zotero.debug(`Error getting overview: `);
 			for (let [k, v] of Object.entries(error)) {
 				Zotero.debug(`error field ${k}: ${v}`);
 			}
@@ -132,7 +127,6 @@ async function getChapterOverview(translation, chapterOsis) {
 }
 
 async function scrape(doc, url = doc.location.href) {
-	Zotero.debug(`scraping ${url}`);
 	let item = new Zotero.Item('bookSection');
 	let langEl = doc.querySelector("html");
 
@@ -142,7 +136,6 @@ async function scrape(doc, url = doc.location.href) {
 	let verEl = doc.querySelector("div.version-display");
 	let translation;
 	if (verEl) {
-		Zotero.debug(`Found version ${verEl.outerHTML}`);
 		translation = verEl.innerHTML.trim();
 	}
 	else {
@@ -153,19 +146,15 @@ async function scrape(doc, url = doc.location.href) {
 
 	let osis = attr(doc, 'div.passage-table', 'data-osis');
 
-	Zotero.debug(`osis: ${osis}, translation: ${translation}`);
-	Zotero.debug(`document title: '${doc.title}'`);
 	const titleRe = /^([A-Z a-z\d]+ \d+(?::\d+)?)(?:-\d+(?::\d+)?)?\s+([A-Z][A-Z0-9]+)(?= -)/gm;
 	let match = titleRe.exec(doc.title);
 
 	let pageTitle = match[0];
 	if (!osis) {
-		let osis = match[1];
-		Zotero.debug(`osis: ${osis}, translation: ${translation}`);
+		osis = match[1];
 	}
 	if (!translation) {
 		translation = match[2];
-		Zotero.debug(`title: '${doc.title}'\nmatch: ${match}`);
 	}
 	item.bookTitle = translationLong;
 
