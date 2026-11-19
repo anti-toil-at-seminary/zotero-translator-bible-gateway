@@ -1,4 +1,6 @@
 version: "3"
+# ToDo:
+# * task to fetch all build/test deps for upstream
 vars:
   SOURCE: '{{ .SOURCE | default "BibleGateway.js" }}'
   SOURCE_FILE: '{{ base .SOURCE }}'
@@ -14,11 +16,9 @@ vars:
       elif test -f .target_branch; then
         cat .target_branch
       fi
-  DEFAULT_TARGET_BRANCH:
-    sh: >
-      test -n '{{ .TARGET_BRANCH_FROM_FILE }}'
-      && echo -n '{{ .TARGET_BRANCH_FROM_FILE }}'
-      || echo -n '{{ .THIS_BRANCH }}'
+  DEFAULT_TARGET_BRANCH: >
+      {{ if eq .TARGET_BRANCH_FROM_FILE "" }}{{ .TARGET_BRANCH_FROM_FILE }}
+      {{ else if not ( or ( eq .THIS_BRANCH "main") (eq .THIS_BRANCH "master")) }}{{ .THIS_BRANCH }}{{- end -}}
   TARGET_BRANCH: '{{ .TARGET_BRANCH | default .DEFAULT_TARGET_BRANCH }}'
   GHA_DOCKERFILE_DEV: "https://raw.githubusercontent.com/pretty-weed/toolbelt/main/docker/ci_tools/Dockerfile"
   BASE_DOCKERFILE: ".task/Dockerfile.base"
@@ -48,23 +48,18 @@ tasks:
       - '{{ .TARGET_FILE }}'
   update-upstream:
     desc: set inRepository to true
+    vars:
+      TARGET_BRANCH: '{{ .TARGET_BRANCH | default .DEFAULT_TARGET_BRANCH }}'
+    requires:
+      vars:
+        - TARGET_BRANCH
     deps:
       - install-upstream
     cmds:
       - |
-        sed -i "s/\"lastUpdated\": \"[0-9- :]\"/\"lastUpdated\": \"$(date '+%Y-%m-%d %H:%M:%S')\"" {{ .TARGET_FILE }}
-        sed -i 's/\"inRepository\": \(true|false\),/\"inRepository\": true,' {{ .TARGET_FILE }}
-      - |
-        node -e '
-          const fs = require("fs");
-          const file = process.argv[1];
-          let content = fs.readFileSync(file, "utf8");
-          const now = new Date().toISOString().replace("T", " ").slice(0, 19);
-          content = content
-            .replace(/"inRepository":\s*false/, "\"inRepository\": true")
-            .replace(/"lastUpdated":\s*"[^"]*"/, `"lastUpdated": "${now}"`);
-          fs.writeFileSync(file, content, "utf8");
-        ' "{{.UPSTREAM_DIR}}/{{.TRANSLATOR_FILE}}"
+        sed -i.sedtmp "s/\"lastUpdated\": \"[0-9 :-]*\"/\"lastUpdated\": \"$(date '+%Y-%m-%d %H:%M:%S')\"/" {{ .TARGET_FILE }}
+        sed -i.sedtmp 's/"inRepository": false,/"inRepository": true,/' {{ .TARGET_FILE }}
+
   push-upstream:
     preconditions:
       - sh: git diff --quiet -- ":(exclude)Taskfile.yml"

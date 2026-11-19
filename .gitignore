@@ -33,3 +33,5 @@ jspm_packages/
 *-fetched
 .target_branch
 .ci/pull-request-check/connectors
+.sedtmp
+.task
