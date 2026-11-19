@@ -17,9 +17,8 @@ vars:
         cat .target_branch
       fi
   DEFAULT_TARGET_BRANCH: >
-      {{ if eq .TARGET_BRANCH_FROM_FILE "" }}{{ .TARGET_BRANCH_FROM_FILE }}
-      {{ else if not ( or ( eq .THIS_BRANCH "main") (eq .THIS_BRANCH "master")) }}{{ .THIS_BRANCH }}{{- end -}}
-  TARGET_BRANCH: '{{ .TARGET_BRANCH | default .DEFAULT_TARGET_BRANCH }}'
+      {{- if not ( eq .TARGET_BRANCH_FROM_FILE "" ) }}{{ .TARGET_BRANCH_FROM_FILE -}}
+      {{- else if not ( or ( eq .THIS_BRANCH "main") (eq .THIS_BRANCH "master")) }}{{ .THIS_BRANCH }}{{- else -}}uh?{{- end -}}
   GHA_DOCKERFILE_DEV: "https://raw.githubusercontent.com/pretty-weed/toolbelt/main/docker/ci_tools/Dockerfile"
   BASE_DOCKERFILE: ".task/Dockerfile.base"
 includes:
@@ -50,6 +49,9 @@ tasks:
     desc: set inRepository to true
     vars:
       TARGET_BRANCH: '{{ .TARGET_BRANCH | default .DEFAULT_TARGET_BRANCH }}'
+    preconditions:
+    - sh: '[ -n "{{.TARGET_BRANCH}}" ]'
+      msg: "TARGET_BRANCH cannot be empty"
     requires:
       vars:
         - TARGET_BRANCH
